@@ -810,7 +810,7 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
 /* UPDATED DASHBOARD & APP INTEGRATION                 */
 /* -------------------------------------------------------------------------- */
 
-const CreateNoteModal = ({ isOpen, onClose, onCreate }) => {
+const CreateNoteModal = ({ isOpen, onClose, onCreate, onStartLiveRecording }) => {
   const { theme } = useContext(ThemeContext);
   const [data, setData] = useState({ title: '', desc: '', tags: '', color: '#1F3A5F' });
   const [loading, setLoading] = useState(false);
@@ -825,6 +825,25 @@ const CreateNoteModal = ({ isOpen, onClose, onCreate }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Note">
       <form onSubmit={handleSubmit} className="space-y-4">
+        {onStartLiveRecording && (
+          <button
+            type="button"
+            onClick={() => { onClose(); onStartLiveRecording(); }}
+            className="w-full p-4 mb-1 rounded-xl flex items-center justify-between border transition-all hover:shadow-sm"
+            style={{ borderColor: theme.border, backgroundColor: theme.surface }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: theme.active }}>
+                <Mic size={18} color="#fff" />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-bold" style={{ color: theme.textPrimary }}>Go Live</div>
+                <div className="text-xs" style={{ color: theme.textSecondary }}>Record audio and create notes instantly.</div>
+              </div>
+            </div>
+            <ChevronRight size={16} style={{ color: theme.textSecondary }} />
+          </button>
+        )}
         <Input label="Notebook Title" placeholder="e.g., Linear Algebra Lectures" value={data.title} onChange={e => setData({...data, title: e.target.value})} autoFocus />
         <Input label="Description (Optional)" placeholder="Brief summary of this notebook..." textarea value={data.desc} onChange={e => setData({...data, desc: e.target.value})} />
         <div className="mb-4">
@@ -1459,7 +1478,12 @@ const Dashboard = () => {
         <Plus size={28} />
       </button>
 
-      <CreateNoteModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onCreate={handleCreateNote} />
+      <CreateNoteModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
+        onCreate={handleCreateNote} 
+        onStartLiveRecording={() => { setIsCreateModalOpen(false); setIsRecorderOpen(true); }}
+      />
       <ImageUploader isOpen={isImageUploaderOpen} onClose={() => setIsImageUploaderOpen(false)} onComplete={setEditingNoteId} />
       <PdfUploader isOpen={isPdfUploaderOpen} onClose={() => setIsPdfUploaderOpen(false)} onComplete={setEditingNoteId} />
     </div>

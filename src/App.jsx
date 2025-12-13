@@ -662,15 +662,26 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
     };
 
     const processBufferWithAI = async () => {
-        if (!transcriptBufferRef.current || transcriptBufferRef.current.length < 30) return;
+        const bufferLength = transcriptBufferRef.current?.length || 0;
+        console.log(`[AI Processing] Buffer length: ${bufferLength} chars`);
+        
+        if (!transcriptBufferRef.current || bufferLength < 15) {
+            console.log('[AI Processing] Skipped - insufficient content');
+            setAiStatus('Listening...');
+            return;
+        }
+        
         if (!API_KEY) {
-            console.error('Gemini API key not configured');
+            console.error('[AI Processing] Gemini API key not configured');
             setAiStatus('API Key Missing');
             return;
         }
-        const chunk = transcriptBufferRef.current;
+        
+        const chunk = transcriptBufferRef.current.trim();
         transcriptBufferRef.current = "";
+        console.log(`[AI Processing] Processing ${chunk.length} characters...`);
         setAiStatus('AI Writing...');
+        
         try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -685,23 +696,43 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
             });
             const data = await response.json();
             const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            
             if (aiText) {
-                const newContent = structuredNotes + "\n" + aiText;
+                console.log(`[AI Processing] Generated ${aiText.length} characters`);
+                const newContent = structuredNotes + "\n\n" + aiText;
                 setStructuredNotes(newContent);
                 if (currentNoteId) {
                     const noteRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'notes', currentNoteId);
                     await updateDoc(noteRef, { pages: [{ id: '1', title: 'Live Notes', content: newContent }], lastModified: serverTimestamp(), preview: newContent.substring(0, 100) + "..." });
                 }
+                setAiStatus('Live ✓');
+            } else {
+                console.log('[AI Processing] No content generated');
+                setAiStatus('Live');
             }
-            setAiStatus('Live');
         } catch (err) {
-            console.error("AI Error:", err);
-            setAiStatus('Error');
+            console.error("[AI Processing] Error:", err);
+            setAiStatus('Error - Retry');
             transcriptBufferRef.current = chunk + " " + transcriptBufferRef.current;
         }
     };
 
-    useEffect(() => { let interval; if (isRecording) { interval = setInterval(processBufferWithAI, 10000); } return () => clearInterval(interval); }, [isRecording, currentNoteId]);
+    useEffect(() => { 
+        let interval; 
+        if (isRecording) { 
+            console.log('[Recording] AI processing interval started (every 10s)');
+            interval = setInterval(() => {
+                console.log('[Recording] 10s interval triggered');
+                processBufferWithAI();
+            }, 10000); 
+        } 
+        return () => {
+            if (interval) {
+                console.log('[Recording] AI processing interval cleared');
+                clearInterval(interval);
+            }
+        };
+    }, [isRecording, currentNoteId]);
 
     const startRecording = async () => {
         try {

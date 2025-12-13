@@ -663,6 +663,11 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
 
     const processBufferWithAI = async () => {
         if (!transcriptBufferRef.current || transcriptBufferRef.current.length < 30) return;
+        if (!API_KEY) {
+            console.error('Gemini API key not configured');
+            setAiStatus('API Key Missing');
+            return;
+        }
         const chunk = transcriptBufferRef.current;
         transcriptBufferRef.current = "";
         setAiStatus('AI Writing...');
@@ -696,7 +701,7 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
         }
     };
 
-    useEffect(() => { let interval; if (isRecording) { interval = setInterval(processBufferWithAI, 10000); } return () => clearInterval(interval); }, [isRecording, currentNoteId, structuredNotes]);
+    useEffect(() => { let interval; if (isRecording) { interval = setInterval(processBufferWithAI, 10000); } return () => clearInterval(interval); }, [isRecording, currentNoteId]);
 
     const startRecording = async () => {
         try {

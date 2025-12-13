@@ -1309,7 +1309,31 @@ const Dashboard = () => {
 
   const userInitials = user.displayName ? user.displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
   
-  const filteredNotes = notes.filter(n => n.title.toLowerCase().includes(filterQuery.toLowerCase()) || n.tags?.some(t => t.includes(filterQuery.toLowerCase())));
+  // Enhanced search: search across title, description, tags, preview, and all page content
+  const filteredNotes = notes.filter(n => {
+    if (!filterQuery.trim()) return true;
+    const query = filterQuery.toLowerCase();
+    
+    // Search in title
+    if (n.title?.toLowerCase().includes(query)) return true;
+    
+    // Search in description
+    if (n.description?.toLowerCase().includes(query)) return true;
+    
+    // Search in preview
+    if (n.preview?.toLowerCase().includes(query)) return true;
+    
+    // Search in tags
+    if (n.tags?.some(t => t.toLowerCase().includes(query))) return true;
+    
+    // Search in all page content
+    if (n.pages?.some(page => page.content?.toLowerCase().includes(query))) return true;
+    
+    // Search in page titles
+    if (n.pages?.some(page => page.title?.toLowerCase().includes(query))) return true;
+    
+    return false;
+  });
 
   // If editing, show Full Screen Editor
   if (editingNoteId) {

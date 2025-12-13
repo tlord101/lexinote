@@ -614,11 +614,13 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
     const { theme } = useContext(ThemeContext);
     const { user } = useContext(AuthContext);
     const [isRecording, setIsRecording] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
     const [duration, setDuration] = useState(0);
     const [transcript, setTranscript] = useState('');
     const [structuredNotes, setStructuredNotes] = useState('');
     const [aiStatus, setAiStatus] = useState('Ready');
     const [currentNoteId, setCurrentNoteId] = useState(null);
+    const [autoScroll, setAutoScroll] = useState(true);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const canvasRef = useRef(null);
@@ -631,7 +633,17 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
 
     const formatTime = (secs) => { const mins = Math.floor(secs / 60); const seconds = secs % 60; return `${mins}:${seconds.toString().padStart(2, '0')}`; };
 
-    useEffect(() => { if (notesContainerRef.current) notesContainerRef.current.scrollTop = notesContainerRef.current.scrollHeight; }, [structuredNotes]);
+    useEffect(() => { 
+        if (notesContainerRef.current && autoScroll) {
+            notesContainerRef.current.scrollTop = notesContainerRef.current.scrollHeight;
+        }
+    }, [structuredNotes, autoScroll]);
+
+    const handleScroll = (e) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.target;
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+        setAutoScroll(isAtBottom);
+    };
 
     const visualize = () => {
         if (!analyserRef.current || !canvasRef.current) return;
@@ -719,7 +731,7 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
 
     useEffect(() => { 
         let interval; 
-        if (isRecording) { 
+        if (isRecording && !isPaused) { 
             console.log('[Recording] AI processing interval started (every 10s)');
             interval = setInterval(() => {
                 console.log('[Recording] 10s interval triggered');
@@ -732,7 +744,7 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
                 clearInterval(interval);
             }
         };
-    }, [isRecording, currentNoteId]);
+    }, [isRecording, isPaused, currentNoteId]);
 
     const startRecording = async () => {
         try {
@@ -793,13 +805,46 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
         };
     };
 
-    useEffect(() => { let interval; if (isRecording) { interval = setInterval(() => setDuration(s => s + 1), 1000); } return () => clearInterval(interval); }, [isRecording]);
+    const pauseRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.pause();
+            if (recognitionRef.current) recognitionRef.current.stop();
+            setIsPaused(true);
+            setAiStatus('Paused');
+            console.log('[Recording] Paused');
+        }
+    };
+
+    const resumeRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+            mediaRecorderRef.current.resume();
+            if (recognitionRef.current) {
+                recognitionRef.current.start();
+            }
+            setIsPaused(false);
+            setAiStatus('Live');
+            console.log('[Recording] Resumed');
+        }
+    };
+
+    useEffect(() => { 
+        let interval; 
+        if (isRecording && !isPaused) { 
+            interval = setInterval(() => setDuration(s => s + 1), 1000); 
+        } 
+        return () => clearInterval(interval); 
+    }, [isRecording, isPaused]);
 
     return (
         <div className="fixed inset-0 z-[60] flex flex-col" style={{ backgroundColor: theme.background }}>
             <div className="h-16 px-6 flex items-center justify-between shrink-0" style={{ backgroundColor: theme.surface }}>
-                <button onClick={onClose} disabled={isRecording} className="p-2 rounded-full hover:bg-black/5"><ChevronDown size={24} style={{ color: theme.textSecondary }} /></button>
-                <div className="flex flex-col items-center"><span className="text-xs font-bold uppercase tracking-widest" style={{ color: theme.active }}>{isRecording ? 'Recording Live' : 'Ready to Record'}</span><span className="font-mono text-xl font-medium" style={{ color: theme.textPrimary }}>{formatTime(duration)}</span></div>
+                <button onClick={onClose} disabled={isRecording && !isPaused} className="p-2 rounded-full hover:bg-black/5"><ChevronDown size={24} style={{ color: theme.textSecondary }} /></button>
+                <div className="flex flex-col items-center">
+                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: isPaused ? theme.warning : (isRecording ? theme.active : theme.textSecondary) }}>
+                        {isPaused ? 'Paused' : (isRecording ? 'Recording Live' : 'Ready to Record')}
+                    </span>
+                    <span className="font-mono text-xl font-medium" style={{ color: theme.textPrimary }}>{formatTime(duration)}</span>
+                </div>
                 <div className="w-10" />
             </div>
             <div className="h-[120px] shrink-0 relative flex flex-col" style={{ backgroundColor: theme.background }}>
@@ -811,7 +856,7 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
                     <div className="flex gap-4"><span className="font-bold text-sm" style={{ color: theme.primary }}>AI Notes</span><span className="font-bold text-sm opacity-50" style={{ color: theme.textSecondary }}>Formatted Live</span></div>
                     <div className="flex items-center gap-2 text-xs font-medium px-2 py-1 rounded-full bg-indigo-100 text-indigo-700"><Sparkles size={12} />{aiStatus}</div>
                 </div>
-                <div ref={notesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4 scroll-smooth">
+                <div ref={notesContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-6 space-y-4 scroll-smooth">
                     {structuredNotes ? (
                         <MarkdownView content={structuredNotes} />
                     ) : (
@@ -829,8 +874,15 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
                   </button>
                 ) : (
                   <React.Fragment>
-                    <button className="p-4 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300">
-                      <Pause size={24} />
+                    <button 
+                      onClick={isPaused ? resumeRecording : pauseRecording}
+                      className="p-4 rounded-full transition-colors"
+                      style={{ 
+                        backgroundColor: isPaused ? theme.primary : '#e5e7eb',
+                        color: isPaused ? 'white' : '#4b5563'
+                      }}
+                    >
+                      {isPaused ? <Mic size={24} /> : <Pause size={24} />}
                     </button>
                     <button
                       onClick={stopRecording}

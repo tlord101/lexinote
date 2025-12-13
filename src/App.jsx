@@ -67,7 +67,7 @@ const storage = getStorage(app);
 
 // Global App ID for Firestore paths (Rule 1)
 const APP_ID = "1:750743868519:web:5a937bc8e75e86a96570c2";
-const API_KEY = "AIzaSyAQ9mpM9MBQnIWWm43SGatTTLgXCch4LQ0";
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 /* -------------------------------------------------------------------------- */
 /* THEME SYSTEM                                */

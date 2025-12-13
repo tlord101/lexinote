@@ -248,7 +248,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
             >
                 <div className="p-5 border-b flex justify-between items-center shrink-0" style={{ borderColor: theme.border }}>
                     <h3 className="font-bold text-lg" style={{ color: theme.textPrimary }}>{title}</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg:black/5">
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-black/5">
                         <X className="w-5 h-5" style={{ color: theme.textSecondary }} />
                     </button>
                 </div>
@@ -479,7 +479,7 @@ const PdfUploader = ({ isOpen, onClose, onComplete }) => {
                <div className="space-y-2 max-h-64 overflow-y-auto">
                    {pages.map((page) => (
                        <div key={page.id} className="flex items-center gap-3 p-2 rounded-lg border" style={{ borderColor: theme.border, backgroundColor: theme.surface }}>
-                           <div className="w-10 h-14 bg:white border shadow-sm shrink-0 overflow-hidden"><img src={page.preview} className="w-full h-full object-contain" alt="" /></div>
+                           <div className="w-10 h-14 bg-white border shadow-sm shrink-0 overflow-hidden"><img src={page.preview} className="w-full h-full object-contain" alt="" /></div>
                            <div className="flex-1 min-w-0">
                                <div className="flex justify-between mb-1"><span className="text-xs font-bold">Page {page.pageNumber}</span><span className={`text-[10px] font-bold uppercase ${page.status === 'success' ? 'text-green-500' : page.status === 'error' ? 'text-red-500' : 'text-blue-500'}`}>{page.status}</span></div>
                                <div className="h-1 bg-gray-200 rounded-full overflow-hidden"><div className="h-full transition-all duration-300" style={{ width: `${page.progress}%`, backgroundColor: theme.primary }} /></div>
@@ -770,12 +770,37 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
                     {structuredNotes ? (
                         <MarkdownView content={structuredNotes} />
                     ) : (
-                        <div className="flex flex-col items-center justify:center h-full opacity-40 gap-2"><Brain size={32} /><p>Waiting for speech...</p></div>
+                        <div className="flex flex-col items-center justify-center h-full opacity-40 gap-2"><Brain size={32} /><p>Waiting for speech...</p></div>
                     )}
                 </div>
             </div>
             <div className="h-32 shrink-0 flex items-center justify-center gap-8 pb-8" style={{ backgroundColor: theme.surface }}>
-                {!isRecording ? ( <button onClick={startRecording} className="w-20 h-20 rounded-full bg-red-500 shadow-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"><Mic size={32} color="white" /></button> ) : ( <> <button className="p-4 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"><Pause size={24} /></button> <button onClick={stopRecording} className="w-20 h-20 rounded-full border-4 border-red-500 flex items-center justify-center recording-pulse relative"><div className="w-8 h-8 rounded bg-red-500" /></button> <button className="p-4 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300" onClick={() => transcriptBufferRef.current += " [BOOKMARK] "><Bookmark size={24} /></button> </> )}
+                {!isRecording ? (
+                  <button
+                    onClick={startRecording}
+                    className="w-20 h-20 rounded-full bg-red-500 shadow-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <Mic size={32} color="white" />
+                  </button>
+                ) : (
+                  <React.Fragment>
+                    <button className="p-4 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300">
+                      <Pause size={24} />
+                    </button>
+                    <button
+                      onClick={stopRecording}
+                      className="w-20 h-20 rounded-full border-4 border-red-500 flex items-center justify-center recording-pulse relative"
+                    >
+                      <div className="w-8 h-8 rounded bg-red-500" />
+                    </button>
+                    <button
+                      className="p-4 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300"
+                      onClick={() => (transcriptBufferRef.current += " [BOOKMARK] ")}
+                    >
+                      <Bookmark size={24} />
+                    </button>
+                  </React.Fragment>
+                )}
             </div>
         </div>
     );
@@ -992,7 +1017,7 @@ const Editor = ({ noteId, onClose }) => {
                         <>
                             <div className="w-px h-6 bg-gray-300 mx-2" />
                             <button onClick={() => setShowLeft(!showLeft)} className={`p-2 rounded hover:bg-black/5 ${showLeft ? 'bg-black/5' : ''}`}><PanelLeft size={18} style={{ color: theme.textSecondary }} /></button>
-                            <button onClick={() => setShowRight(!showRight)} className={`p-2 rounded hover:bg:black/5 ${showRight ? 'bg-black/5' : ''}`}><Brain size={18} style={{ color: theme.textSecondary }} /></button>
+                            <button onClick={() => setShowRight(!showRight)} className={`p-2 rounded hover:bg-black/5 ${showRight ? 'bg-black/5' : ''}`}><Brain size={18} style={{ color: theme.textSecondary }} /></button>
                         </>
                     )}
                 </div>
@@ -1008,7 +1033,7 @@ const Editor = ({ noteId, onClose }) => {
                             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.textSecondary }}>Pages</span>
                             <div className="flex gap-1">
                                 <button onClick={() => setIsImageUploaderOpen(true)} className="p-1 hover:bg-black/5 rounded"><Camera size={16} style={{ color: theme.textPrimary }} /></button>
-                                <button onClick={addPage} className="p-1 hover:bg:black/5 rounded"><Plus size={16} style={{ color: theme.textPrimary }} /></button>
+                                <button onClick={addPage} className="p-1 hover:bg-black/5 rounded"><Plus size={16} style={{ color: theme.textPrimary }} /></button>
                             </div>
                         </div>
                         <div className="overflow-y-auto flex-1 p-2 space-y-1">
@@ -1036,13 +1061,13 @@ const Editor = ({ noteId, onClose }) => {
                         <div className="h-10 border-b flex items-center px-4 gap-4 overflow-x-auto no-scrollbar shrink-0" style={{ borderColor: theme.border, backgroundColor: theme.surface }}>
                              <div className="flex items-center gap-1">
                                 <button className="p-1.5 hover:bg-black/5 rounded"><Bold size={14} style={{ color: theme.textSecondary }}/></button>
-                                <button className="p-1.5 hover:bg:black/5 rounded"><Italic size={14} style={{ color: theme.textSecondary }}/></button>
-                                <button className="p-1.5 hover:bg:black/5 rounded"><ListIcon size={14} style={{ color: theme.textSecondary }}/></button>
+                                <button className="p-1.5 hover:bg-black/5 rounded"><Italic size={14} style={{ color: theme.textSecondary }}/></button>
+                                <button className="p-1.5 hover:bg-black/5 rounded"><ListIcon size={14} style={{ color: theme.textSecondary }}/></button>
                              </div>
                              <div className="w-px h-4 bg-gray-300" />
                              <div className="flex items-center gap-1">
                                 <button className="p-1.5 hover:bg-black/5 rounded"><Undo size={14} style={{ color: theme.textSecondary }}/></button>
-                                <button className="p-1.5 hover:bg:black/5 rounded"><Redo size={14} style={{ color: theme.textSecondary }}/></button>
+                                <button className="p-1.5 hover:bg-black/5 rounded"><Redo size={14} style={{ color: theme.textSecondary }}/></button>
                              </div>
                              <div className="flex-1" />
                              <span className="text-[10px] uppercase font-bold" style={{ color: status === 'saved' ? theme.success : theme.warning }}>{status}</span>
@@ -1198,7 +1223,7 @@ const TopBar = ({ onMenuClick, title, avatarInitials, searchQuery, onSearchChang
       
       <div className="flex items-center gap-2 shrink-0">
          <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-black/5">{isDark ? <Sun size={20} color={theme.textSecondary} /> : <Moon size={20} color={theme.textSecondary} />}</button>
-         <div className="w-8 h-8 rounded-full flex items:center justify-center text-xs font-bold border" style={{ backgroundColor: theme.surface, borderColor: theme.border, color: theme.primary }}>{avatarInitials}</div>
+         <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border" style={{ backgroundColor: theme.surface, borderColor: theme.border, color: theme.primary }}>{avatarInitials}</div>
       </div>
     </div>
   );
@@ -1478,7 +1503,7 @@ const AuthScreen = () => {
            </div>
            <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'register' && <Input label="Full Name" placeholder="John Doe" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />}
-              <Input label="Email Address" type="email" placeholder="student@university.edu" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />}
+              <Input label="Email Address" type="email" placeholder="student@university.edu" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
               {mode !== 'forgot' && <Input label="Password" type="password" placeholder="••••••••" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} required />}
               {error && <div className="p-3 rounded-lg text-xs flex items-start gap-2 bg-red-50 border border-red-100" style={{ color: theme.error }}><AlertCircle size={14} className="mt-0.5 shrink-0" /><span>{error}</span></div>}
               <Button type="submit" className="w-full mt-4" isLoading={isLoading}>{mode === 'login' ? 'Sign In' : mode === 'register' ? 'Create Account' : 'Send Reset Link'}</Button>

@@ -4,6 +4,8 @@ import {
   getAuth, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
+  GoogleAuthProvider,
+  signInWithPopup,
   signOut, 
   onAuthStateChanged,
   sendPasswordResetEmail,
@@ -39,7 +41,7 @@ import {
   Wand2, GripVertical, Camera, Bookmark, 
   Maximize2, Sparkles, RefreshCw, Upload, Edit,
   PenTool, Eye, ChevronLeft, ArrowLeft, ArrowRight,
-  FileType, ChevronRight
+  FileType, ChevronRight, Chrome
 } from 'lucide-react'
 
 /* -------------------------------------------------------------------------- */
@@ -147,6 +149,7 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isNewUser, setIsNewUser] = useState(false);
+  const googleProvider = useMemo(() => new GoogleAuthProvider(), []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -163,12 +166,18 @@ const AuthProvider = ({ children }) => {
     setIsNewUser(true);
     return res;
   };
+  const loginWithGoogle = async () => {
+    const res = await signInWithPopup(auth, googleProvider);
+    // Mark onboarding for new accounts created via Google
+    if (res?._tokenResponse?.isNewUser) setIsNewUser(true);
+    return res;
+  };
   const logout = () => { setIsNewUser(false); return signOut(auth); };
   const resetPassword = (email) => sendPasswordResetEmail(auth, email);
   const completeOnboarding = () => setIsNewUser(false);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, resetPassword, isNewUser, completeOnboarding }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout, resetPassword, isNewUser, completeOnboarding }}>
       {children}
     </AuthContext.Provider>
   );
@@ -1520,9 +1529,10 @@ const Onboarding = ({ onFinish }) => {
 
 const AuthScreen = () => {
   const { theme } = useContext(ThemeContext);
-  const { login, register, resetPassword } = useContext(AuthContext);
+  const { login, register, resetPassword, loginWithGoogle } = useContext(AuthContext);
   const [mode, setMode] = useState('login');
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({ email: '', password: '', name: '' });
 
@@ -1533,6 +1543,17 @@ const AuthScreen = () => {
       else if (mode === 'register') await register(formData.email, formData.password, formData.name);
       else if (mode === 'forgot') { await resetPassword(formData.email); alert('Reset link sent!'); setMode('login'); }
     } catch (err) { setError(err.message.replace('Firebase: ', '')); } finally { setIsLoading(false); }
+  };
+
+  const handleGoogleAuth = async () => {
+    setError(''); setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+    } catch (err) {
+      setError(err.message.replace('Firebase: ', ''));
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -1556,8 +1577,28 @@ const AuthScreen = () => {
               {error && <div className="p-3 rounded-lg text-xs flex items-start gap-2 bg-red-50 border border-red-100" style={{ color: theme.error }}><AlertCircle size={14} className="mt-0.5 shrink-0" /><span>{error}</span></div>}
               <Button type="submit" className="w-full mt-4" isLoading={isLoading}>{mode === 'login' ? 'Sign In' : mode === 'register' ? 'Create Account' : 'Send Reset Link'}</Button>
            </form>
+           {mode !== 'forgot' && (
+             <div className="mt-5 space-y-3">
+               <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: theme.textSecondary }}>
+                 <span className="flex-1 h-px" style={{ backgroundColor: theme.border }} />
+                 <span>or</span>
+                 <span className="flex-1 h-px" style={{ backgroundColor: theme.border }} />
+               </div>
+               <Button
+                 type="button"
+                 variant="secondary"
+                 className="w-full"
+                 onClick={handleGoogleAuth}
+                 isLoading={googleLoading}
+                 disabled={isLoading}
+               >
+                 <Chrome className="w-5 h-5" />
+                 <span>{mode === 'login' ? 'Continue with Google' : 'Sign up with Google'}</span>
+               </Button>
+             </div>
+           )}
            {mode === 'login' && <div className="mt-4 text-center"><button type="button" onClick={() => setMode('forgot')} className="text-xs hover:underline" style={{ color: theme.primary }}>Forgot password?</button></div>}
-           {mode === 'forgot' && <div className="mt-4 text:center"><button type="button" onClick={() => setMode('login')} className="text-xs hover:underline" style={{ color: theme.textSecondary }}>Back to Login</button></div>}
+           {mode === 'forgot' && <div className="mt-4 text-center"><button type="button" onClick={() => setMode('login')} className="text-xs hover:underline" style={{ color: theme.textSecondary }}>Back to Login</button></div>}
         </Card>
       </div>
     </div>

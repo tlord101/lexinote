@@ -1605,10 +1605,68 @@ const AuthScreen = () => {
   );
 };
 
+const SplashScreen = () => {
+  const { theme, isDark } = useContext(ThemeContext);
+  return (
+    <div 
+      className="h-screen w-full flex flex-col items-center justify-center relative overflow-hidden"
+      style={{ backgroundColor: theme.background }}
+    >
+      {/* Animated Background Gradients */}
+      <div className="absolute top-1/4 right-1/4 w-96 h-96 rounded-full opacity-10 blur-3xl animate-pulse" style={{ backgroundColor: theme.primary, animationDuration: '3s' }} />
+      <div className="absolute bottom-1/4 left-1/4 w-96 h-96 rounded-full opacity-10 blur-3xl animate-pulse" style={{ backgroundColor: theme.secondary, animationDuration: '4s', animationDelay: '1s' }} />
+      
+      {/* Logo Container with Scale Animation */}
+      <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in duration-700">
+        <div 
+          className="w-24 h-24 rounded-3xl flex items-center justify-center mb-6 shadow-2xl transform transition-all duration-500"
+          style={{ 
+            backgroundColor: theme.primary,
+            boxShadow: `0 20px 60px -10px ${theme.primary}60`
+          }}
+        >
+          <FileText size={48} color="white" strokeWidth={2.5} />
+        </div>
+        
+        {/* App Name */}
+        <h1 
+          className="text-4xl font-bold mb-3 tracking-tight animate-in slide-in-from-bottom-4 duration-700"
+          style={{ color: theme.textPrimary, animationDelay: '200ms' }}
+        >
+          LexiNote
+        </h1>
+        
+        {/* Tagline */}
+        <p 
+          className="text-sm font-medium mb-8 animate-in slide-in-from-bottom-4 duration-700"
+          style={{ color: theme.textSecondary, animationDelay: '400ms' }}
+        >
+          Your Academic Companion
+        </p>
+        
+        {/* Loading Indicator */}
+        <div className="flex items-center gap-3 animate-in fade-in duration-700" style={{ animationDelay: '600ms' }}>
+          <Loader2 className="w-5 h-5 animate-spin" style={{ color: theme.primary }} />
+          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: theme.textSecondary }}>
+            Loading...
+          </span>
+        </div>
+      </div>
+      
+      {/* Bottom Branding */}
+      <div className="absolute bottom-8 text-center animate-in fade-in duration-700" style={{ animationDelay: '800ms' }}>
+        <p className="text-[10px] font-medium uppercase tracking-widest" style={{ color: theme.textSecondary, opacity: 0.5 }}>
+          Powered by AI
+        </p>
+      </div>
+    </div>
+  );
+};
+
 const AppContent = () => {
   const { user, loading, isNewUser, completeOnboarding } = useContext(AuthContext);
   const { theme } = useContext(ThemeContext);
-  if (loading) return <div className="h-screen w-full flex items-center justify-center" style={{ backgroundColor: theme.background }}><Loader2 className="w-8 h-8 animate-spin" style={{ color: theme.primary }} /></div>;
+  if (loading) return <SplashScreen />;
   if (!user) return <AuthScreen />;
   if (isNewUser) return <Onboarding onFinish={completeOnboarding} />;
   return <Dashboard />;

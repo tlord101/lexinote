@@ -1356,29 +1356,190 @@ const QuickAction = ({ icon: Icon, label, desc, color, onClick }) => {
   );
 };
 
-const TopBar = ({ onMenuClick, title, avatarInitials, searchQuery, onSearchChange }) => {
+// Semantic Search Results Component
+const SemanticSearchResults = ({ results, clusters, onSelectNote, theme }) => {
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'clusters'
+  
+  if (!results || results.results.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Brain size={48} className="mx-auto mb-4 opacity-30" style={{ color: theme.textSecondary }} />
+        <p className="text-sm font-medium" style={{ color: theme.textSecondary }}>No semantic matches found</p>
+        <p className="text-xs mt-2" style={{ color: theme.textSecondary }}>Try rephrasing your query</p>
+      </div>
+    );
+  }
+  
+  const renderScoreBadge = (score) => {
+    const percentage = Math.round(score * 100);
+    let colorClass = 'bg-green-100 text-green-700';
+    if (percentage < 50) colorClass = 'bg-yellow-100 text-yellow-700';
+    if (percentage < 40) colorClass = 'bg-red-100 text-red-700';
+    
+    return (
+      <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${colorClass}`}>
+        {percentage}% match
+      </div>
+    );
+  };
+  
+  return (
+    <div className="mb-6">
+      {/* Header with view toggle */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} style={{ color: theme.secondary }} />
+          <h3 className="font-bold text-sm" style={{ color: theme.textPrimary }}>
+            AI Semantic Results ({results.results.length})
+          </h3>
+        </div>
+        <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: theme.surface }}>
+          <button 
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-1 rounded text-xs font-medium transition-all ${viewMode === 'list' ? 'shadow-sm' : ''}`}
+            style={{ 
+              backgroundColor: viewMode === 'list' ? theme.primary : 'transparent',
+              color: viewMode === 'list' ? 'white' : theme.textSecondary
+            }}
+          >
+            <List size={14} className="inline mr-1" />
+            Ranked
+          </button>
+          <button 
+            onClick={() => setViewMode('clusters')}
+            className={`px-3 py-1 rounded text-xs font-medium transition-all ${viewMode === 'clusters' ? 'shadow-sm' : ''}`}
+            style={{ 
+              backgroundColor: viewMode === 'clusters' ? theme.primary : 'transparent',
+              color: viewMode === 'clusters' ? 'white' : theme.textSecondary
+            }}
+          >
+            <LayoutGrid size={14} className="inline mr-1" />
+            Clustered
+          </button>
+        </div>
+      </div>
+      
+      {/* Results Display */}
+      {viewMode === 'list' ? (
+        <div className="space-y-3">
+          {results.results.slice(0, 10).map((result, idx) => (
+            <div 
+              key={`${result.note.id}-${idx}`}
+              onClick={() => onSelectNote(result.note.id)}
+              className="p-4 rounded-xl border cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5"
+              style={{ 
+                backgroundColor: theme.surface,
+                borderColor: theme.border
+              }}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                  <h4 className="font-bold text-sm mb-1" style={{ color: theme.textPrimary }}>
+                    {result.note.title}
+                    {result.isPageResult && (
+                      <span className="ml-2 text-xs font-normal opacity-60">
+                        → {result.page.title}
+                      </span>
+                    )}
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    {renderScoreBadge(result.score)}
+                    <span className="text-[10px] opacity-60" style={{ color: theme.textSecondary }}>
+                      Rank #{idx + 1}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs line-clamp-2 opacity-80" style={{ color: theme.textSecondary }}>
+                {result.matchedContent}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {clusters.map((cluster, clusterIdx) => {
+            const maxScore = Math.max(...cluster.map(r => r.score));
+            return (
+              <div key={clusterIdx} className="p-4 rounded-xl border" style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.secondary }} />
+                  <h4 className="font-bold text-xs uppercase tracking-wider" style={{ color: theme.textSecondary }}>
+                    Cluster {clusterIdx + 1} · {cluster.length} result{cluster.length > 1 ? 's' : ''}
+                  </h4>
+                  {renderScoreBadge(maxScore)}
+                </div>
+                <div className="space-y-2">
+                  {cluster.map((result, idx) => (
+                    <div 
+                      key={`${result.note.id}-${idx}`}
+                      onClick={() => onSelectNote(result.note.id)}
+                      className="p-3 rounded-lg cursor-pointer transition-all hover:shadow-md"
+                      style={{ backgroundColor: theme.background }}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <h5 className="font-semibold text-xs" style={{ color: theme.textPrimary }}>
+                          {result.note.title}
+                          {result.isPageResult && (
+                            <span className="ml-2 font-normal opacity-60">
+                              → {result.page.title}
+                            </span>
+                          )}
+                        </h5>
+                        <span className="text-[9px] font-bold opacity-60" style={{ color: theme.textSecondary }}>
+                          {Math.round(result.score * 100)}%
+                        </span>
+                      </div>
+                      <p className="text-[10px] line-clamp-1 opacity-70" style={{ color: theme.textSecondary }}>
+                        {result.matchedContent}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TopBar = ({ onMenuClick, title, avatarInitials, searchQuery, onSearchChange, isSemanticMode, onToggleSemantic, isSearching }) => {
   const { theme, toggleTheme, isDark } = useContext(ThemeContext);
   return (
     <div className="sticky top-0 z-30 px-5 py-4 flex items-center justify-between gap-4 backdrop-blur-lg bg-opacity-95" style={{ backgroundColor: theme.background }}>
       <div className="flex items-center gap-3 flex-1">
         <button onClick={onMenuClick} className="p-2 -ml-2 rounded-full hover:bg-black/5 active:scale-90 transition-transform"><Menu size={24} style={{ color: theme.textPrimary }} /></button>
         
-        {/* Integrated Search Bar */}
+        {/* Integrated Search Bar with Semantic Toggle */}
         <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: theme.textSecondary }} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: isSearching ? theme.primary : theme.textSecondary }} />
+            {isSearching && <Loader2 className="absolute right-12 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin" style={{ color: theme.primary }} />}
             <input 
               type="text" 
-              placeholder={`Search ${title}...`}
+              placeholder={isSemanticMode ? "AI Semantic Search..." : `Search ${title}...`}
               value={searchQuery}
               onChange={onSearchChange}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none border transition-all focus:ring-2 focus:ring-opacity-50 focus:border-transparent"
+              className="w-full pl-9 pr-12 py-2.5 rounded-xl text-sm outline-none border transition-all focus:ring-2 focus:ring-opacity-50 focus:border-transparent"
               style={{ 
                   backgroundColor: theme.surface, 
                   color: theme.textPrimary, 
-                  borderColor: theme.border,
+                  borderColor: isSemanticMode ? theme.secondary : theme.border,
                   '--tw-ring-color': theme.primary
               }}
             />
+            <button 
+              onClick={onToggleSemantic}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all hover:scale-105"
+              style={{ 
+                backgroundColor: isSemanticMode ? theme.secondary : theme.border,
+                color: isSemanticMode ? 'white' : theme.textSecondary
+              }}
+              title={isSemanticMode ? "Using AI Semantic Search" : "Switch to AI Search"}
+            >
+              <Brain size={14} />
+            </button>
         </div>
       </div>
       
@@ -1440,6 +1601,12 @@ const Dashboard = () => {
   // Filters
   const [filterQuery, setFilterQuery] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
+  
+  // Semantic Search States
+  const [isSemanticSearch, setIsSemanticSearch] = useState(false);
+  const [semanticResults, setSemanticResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -1467,6 +1634,198 @@ const Dashboard = () => {
     if (!window.confirm("Delete this note?")) return;
     try { await deleteDoc(doc(db, 'artifacts', APP_ID, 'users', user.uid, 'notes', noteId)); } catch (err) { console.error("Error deleting", err); }
   }
+
+  // ==================== SEMANTIC SEARCH ENGINE ====================
+  
+  // Generate embedding for text using Gemini
+  const generateEmbedding = async (text) => {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: "models/text-embedding-004",
+          content: { parts: [{ text: text.substring(0, 10000) }] } // Limit to 10k chars
+        })
+      });
+      const data = await response.json();
+      return data.embedding?.values || null;
+    } catch (err) {
+      console.error("Embedding generation failed:", err);
+      return null;
+    }
+  };
+  
+  // Calculate cosine similarity between two vectors
+  const cosineSimilarity = (a, b) => {
+    if (!a || !b || a.length !== b.length) return 0;
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+    return denominator === 0 ? 0 : dotProduct / denominator;
+  };
+  
+  // Extract searchable content from note
+  const extractNoteContent = (note) => {
+    let content = `${note.title || ''} ${note.description || ''} `;
+    if (note.tags) content += note.tags.join(' ') + ' ';
+    if (note.pages) {
+      note.pages.forEach(page => {
+        content += `${page.title || ''} ${page.content || ''} `;
+      });
+    }
+    return content.trim();
+  };
+  
+  // Cluster results by similarity
+  const clusterResults = (results) => {
+    if (results.length === 0) return [];
+    
+    const clusters = [];
+    const CLUSTER_THRESHOLD = 0.85; // High similarity threshold for clustering
+    
+    results.forEach(result => {
+      let addedToCluster = false;
+      
+      for (let cluster of clusters) {
+        // Check if result is similar to cluster representative
+        const representative = cluster[0];
+        const similarity = cosineSimilarity(result.embedding, representative.embedding);
+        
+        if (similarity >= CLUSTER_THRESHOLD) {
+          cluster.push(result);
+          addedToCluster = true;
+          break;
+        }
+      }
+      
+      if (!addedToCluster) {
+        clusters.push([result]);
+      }
+    });
+    
+    // Sort clusters by max score
+    return clusters.sort((a, b) => {
+      const maxA = Math.max(...a.map(r => r.score));
+      const maxB = Math.max(...b.map(r => r.score));
+      return maxB - maxA;
+    });
+  };
+  
+  // Perform semantic search
+  const performSemanticSearch = async (searchQuery) => {
+    if (!searchQuery.trim() || searchQuery.length < 3) {
+      setSemanticResults([]);
+      setIsSemanticSearch(false);
+      return;
+    }
+    
+    setIsSearching(true);
+    setIsSemanticSearch(true);
+    
+    try {
+      // Generate query embedding
+      const queryEmbedding = await generateEmbedding(searchQuery);
+      
+      if (!queryEmbedding) {
+        console.error("Failed to generate query embedding");
+        setIsSearching(false);
+        return;
+      }
+      
+      // Search through all notes
+      const results = [];
+      
+      for (const note of notes) {
+        const noteContent = extractNoteContent(note);
+        if (!noteContent) continue;
+        
+        // Generate embedding for note
+        const noteEmbedding = await generateEmbedding(noteContent);
+        
+        if (noteEmbedding) {
+          const similarity = cosineSimilarity(queryEmbedding, noteEmbedding);
+          
+          if (similarity > 0.3) { // Threshold for relevance
+            results.push({
+              note,
+              score: similarity,
+              embedding: noteEmbedding,
+              matchedContent: noteContent.substring(0, 200) + '...'
+            });
+          }
+        }
+        
+        // Also check individual pages for more granular results
+        if (note.pages) {
+          for (const page of note.pages) {
+            const pageContent = `${page.title || ''} ${page.content || ''}`.trim();
+            if (!pageContent) continue;
+            
+            const pageEmbedding = await generateEmbedding(pageContent);
+            if (pageEmbedding) {
+              const pageSimilarity = cosineSimilarity(queryEmbedding, pageEmbedding);
+              
+              if (pageSimilarity > 0.4) {
+                results.push({
+                  note,
+                  page,
+                  score: pageSimilarity,
+                  embedding: pageEmbedding,
+                  matchedContent: pageContent.substring(0, 200) + '...',
+                  isPageResult: true
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // Sort by score
+      results.sort((a, b) => b.score - a.score);
+      
+      // Cluster similar results
+      const clusters = clusterResults(results);
+      
+      setSemanticResults({ results, clusters });
+      
+    } catch (err) {
+      console.error("Semantic search error:", err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+  
+  // Debounced semantic search
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setFilterQuery(value);
+    
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // If empty, reset immediately
+    if (!value.trim()) {
+      setIsSemanticSearch(false);
+      setSemanticResults([]);
+      return;
+    }
+    
+    // Debounce semantic search by 800ms
+    searchTimeoutRef.current = setTimeout(() => {
+      performSemanticSearch(value);
+    }, 800);
+  };
+  
+  // ==================== END SEMANTIC SEARCH ====================
 
   const userInitials = user.displayName ? user.displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
   
@@ -1515,7 +1874,17 @@ const Dashboard = () => {
         title={activePage === 'dashboard' ? 'Dashboard' : 'My Notes'} 
         avatarInitials={userInitials}
         searchQuery={filterQuery}
-        onSearchChange={(e) => setFilterQuery(e.target.value)}
+        onSearchChange={handleSearchChange}
+        isSemanticMode={isSemanticSearch}
+        onToggleSemantic={() => {
+          setIsSemanticSearch(!isSemanticSearch);
+          if (!isSemanticSearch && filterQuery) {
+            performSemanticSearch(filterQuery);
+          } else {
+            setSemanticResults([]);
+          }
+        }}
+        isSearching={isSearching}
       />
 
       <div className="flex-1 overflow-y-auto px-5 pb-24">
@@ -1569,16 +1938,31 @@ const Dashboard = () => {
         {/* Notebook List (Visible on Dashboard and Notes page) */}
         <div>
           <div className="flex justify-between items-center mb-4 sticky top-0 py-2 z-10 bg-opacity-95 backdrop-blur-sm" style={{ backgroundColor: theme.background }}>
-            <h3 className="font-bold text-sm uppercase tracking-wider" style={{ color: theme.textSecondary }}>{activePage === 'dashboard' ? 'Recent Notes' : 'All Notebooks'}</h3>
+            <h3 className="font-bold text-sm uppercase tracking-wider" style={{ color: theme.textSecondary }}>
+              {isSemanticSearch ? 'Search Results' : (activePage === 'dashboard' ? 'Recent Notes' : 'All Notebooks')}
+            </h3>
             <div className="flex gap-2">
                 <button onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')} className="p-1.5 rounded bg-black/5"><ArrowUp size={16} style={{ color: theme.textSecondary, transform: sortOrder === 'desc' ? 'rotate(180deg)' : 'none' }} /></button>
             </div>
           </div>
 
-          {loadingNotes ? (
-            <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: theme.primary }} /></div>
-          ) : filteredNotes.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed rounded-xl" style={{ borderColor: theme.border }}>
+          {/* Semantic Search Results */}
+          {isSemanticSearch && semanticResults.results && (
+            <SemanticSearchResults 
+              results={semanticResults}
+              clusters={semanticResults.clusters}
+              onSelectNote={(noteId) => setEditingNoteId(noteId)}
+              theme={theme}
+            />
+          )}
+
+          {/* Standard Results */}
+          {!isSemanticSearch && (
+            <>
+              {loadingNotes ? (
+                <div className="flex justify-center py-10"><Loader2 className="animate-spin" style={{ color: theme.primary }} /></div>
+              ) : filteredNotes.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed rounded-xl" style={{ borderColor: theme.border }}>
                <FileText size={32} className="mx-auto mb-3 opacity-30" /><p className="text-sm opacity-50">No notes found.</p>
             </div>
           ) : (
@@ -1607,6 +1991,8 @@ const Dashboard = () => {
                 </Card>
               ))}
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

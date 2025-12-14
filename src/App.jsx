@@ -677,8 +677,8 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
         const bufferLength = transcriptBufferRef.current?.length || 0;
         console.log(`[AI Processing] Buffer length: ${bufferLength} chars`);
         
-        if (!transcriptBufferRef.current || bufferLength < 15) {
-            console.log('[AI Processing] Skipped - insufficient content');
+        if (!transcriptBufferRef.current || bufferLength < 10) {
+            console.log('[AI Processing] Skipped - insufficient content (need 10+ words)');
             setAiStatus('Listening...');
             return;
         }
@@ -691,34 +691,79 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
         
         const chunk = transcriptBufferRef.current.trim();
         transcriptBufferRef.current = "";
-        console.log(`[AI Processing] Processing ${chunk.length} characters...`);
+        console.log(`[AI Processing] Processing ${chunk.length} characters with STREAMING...`);
         setAiStatus('AI Writing...');
         
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: `You are an attentive student taking notes during a lecture. Convert this raw speech transcript into structured, high-quality study notes.
-                            1. **Focus**: Extract only the educational content. Ignore background noise, interruptions, or irrelevant chatter.
-                            2. **Formulas**: Detect verbal descriptions of math/science formulas and convert them into LaTeX syntax (e.g. $E=mc^2$).
-                            3. **Format**: Use Markdown with clear bullet points. Use **bold** for key terms and definitions.
-                            4. **Style**: Write in a clear, concise academic tone.
-                            5. **Output**: Return ONLY the Markdown content to append to the notes.
-                            
-                            Raw Transcript: "${chunk}"` }] }] })
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:streamGenerateContent?key=${API_KEY}&alt=sse`, {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    contents: [{ 
+                        parts: [{ 
+                            text: `You are an attentive student taking notes during a lecture. Convert this raw speech transcript into structured, high-quality study notes.
+1. **Focus**: Extract only the educational content. Ignore background noise, interruptions, or irrelevant chatter.
+2. **Formulas**: Detect verbal descriptions of math/science formulas and convert them into LaTeX syntax (e.g. $E=mc^2$).
+3. **Format**: Use Markdown with clear bullet points. Use **bold** for key terms and definitions.
+4. **Style**: Write in a clear, concise academic tone.
+5. **Output**: Return ONLY the Markdown content to append to the notes.
+
+Raw Transcript: "${chunk}"` 
+                        }] 
+                    }] 
+                })
             });
-            const data = await response.json();
-            const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             
-            if (aiText) {
-                console.log(`[AI Processing] Generated ${aiText.length} characters`);
-                const newContent = structuredNotes + "\n\n" + aiText;
-                setStructuredNotes(newContent);
-                if (currentNoteId) {
-                    const noteRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'notes', currentNoteId);
-                    await updateDoc(noteRef, { pages: [{ id: '1', title: 'Live Notes', content: newContent }], lastModified: serverTimestamp(), preview: newContent.substring(0, 100) + "..." });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedText = '';
+            let buffer = '';
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const jsonStr = line.slice(6);
+                            if (jsonStr.trim() === '[DONE]') continue;
+                            const data = JSON.parse(jsonStr);
+                            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                            
+                            if (text) {
+                                accumulatedText += text;
+                                // Update UI immediately with streaming content
+                                const newContent = structuredNotes + "\n\n" + accumulatedText;
+                                setStructuredNotes(newContent);
+                                setAiStatus('Live ✍️');
+                            }
+                        } catch (e) {
+                            console.warn('[Streaming] Parse error:', e);
+                        }
+                    }
                 }
+            }
+            
+            // Final update to Firestore after complete response
+            if (accumulatedText && currentNoteId) {
+                console.log(`[AI Processing] Streaming complete: ${accumulatedText.length} characters`);
+                const finalContent = structuredNotes + "\n\n" + accumulatedText;
+                setStructuredNotes(finalContent);
+                const noteRef = doc(db, 'artifacts', APP_ID, 'users', user.uid, 'notes', currentNoteId);
+                await updateDoc(noteRef, { 
+                    pages: [{ id: '1', title: 'Live Notes', content: finalContent }], 
+                    lastModified: serverTimestamp(), 
+                    preview: finalContent.substring(0, 100) + "..." 
+                });
                 setAiStatus('Live ✓');
-            } else {
+            } else if (!accumulatedText) {
                 console.log('[AI Processing] No content generated');
                 setAiStatus('Live');
             }
@@ -732,11 +777,11 @@ const RecorderOverlay = ({ onClose, onSaved }) => {
     useEffect(() => { 
         let interval; 
         if (isRecording && !isPaused) { 
-            console.log('[Recording] AI processing interval started (every 10s)');
+            console.log('[Recording] AI processing interval started (every 5s for faster response)');
             interval = setInterval(() => {
-                console.log('[Recording] 10s interval triggered');
+                console.log('[Recording] 5s interval triggered');
                 processBufferWithAI();
-            }, 10000); 
+            }, 5000); // Reduced from 10s to 5s for faster processing
         } 
         return () => {
             if (interval) {
